@@ -1,10 +1,6 @@
 /** 
-☑️ 资源解析器 ©𝐒𝐡𝐚𝐰𝐧  ⟦2026-10-13 12:49⟧
+☑️ 资源解析器 ©DONG  ⟦2026-10-13⟧
 ----------------------------------------------------------
-🛠 发现 𝐁𝐔𝐆 请反馈: https://t.me/ShawnKOP_Parser_Bot
-⛳️ 关注 🆃🅶 相关频道: https://t.me/QuanX_API
-📖 使用 教程: https://tinyurl.com/2jyygfom
-🗣 🆃🄷🄰🄽🄺🅂 🆃🄾  @Jamie CHIEN, @M**F**, @c0lada, @Peng-YM, @vinewx, @love4taylor, @shadowdogy 
 
 🤖 主要功能: 
 ❶ 将其它格式的⟦服务器订阅⟧解析成 𝐐𝐮𝐚𝐧𝐭𝐮𝐦𝐮𝐥𝐭 𝐗 格式
@@ -36,7 +32,7 @@
 ⦿ rename 重命名, "旧名@新名", "前缀@", "@后缀", 用 "+" 连接多个参数;
   ❖ 删除字段: "字段1.字段2☠️", 想删除 "." 时用 "\." 替代
   ❖ 示范: "rename=香港@𝐇𝐊+[𝐒𝐒]@+@[1𝐗]+流量.0\.2☠️"
-  ❖ 默认 emoji 先生效, 如想调换顺序, 请用 rrname 参数
+  ❖ rrname、srename、replace、rename 均先于 emoji 执行，随后处理占位符和排序
 ⦿ replace 正则替换节点中字段, 可用于重命名/更改加密方式等
   ❖ replace=regex1@𝘀𝘁𝗿1+regex2@𝘀𝘁𝗿2
 ⦿ ptn/npt=1-8, 将节点名英文/数字替换成样式 ⇒ 🅰/🄰/𝐀/𝗮/𝔸/𝕒/ᵃ/ᴬ, ①\❶\⓵\𝟙\¹\₁\𝟏\𝟷
@@ -104,7 +100,7 @@
 /**
 * 使用说明，
 0️⃣ 在QuantumultX 配置文件中[general] 部分，加入 
-resource_parser_url = https://raw.githubusercontent.com/KOP-XIAO/QuantumultX/master/Scripts/resource-parser.js
+resource_parser_url = https://raw.githubusercontent.com/hsdmore/QuantumultX/refs/heads/master/Scripts/resource-parser.js
 ⚠️⚠️如提示"没有自定义解析器"，请长按右下角图标后点击左侧刷新按钮，更新资源，后台退出 app，直到出现解析器说明
 
 ------------------------------
@@ -215,8 +211,8 @@ $parser.hashSchema = function () {
           { type: "text", key: "rename",  label: "节点重命名（Rename）",
             description: "格式：旧名@新名 / 前缀@ / @后缀；多组用 + 连接；删除字段用 ☠️ 结尾",
             placeholder: "香港@HK+@[1X]" },
-          { type: "text", key: "rrname",  label: "节点重命名（emoji 保持在前）",
-            description: "在 emoji 之后再次重命名", placeholder: "" },
+          { type: "text", key: "rrname",  label: "前置重命名（rrname）",
+            description: "先于 srename、replace、rename 和 emoji 执行", placeholder: "" },
           { type: "select", key: "ptn", label: "字母样式（ptn）",
             description: "将节点名英文替换成花式样式 🅰/🄰/𝐀/𝗮/𝔸/𝕒/ᵃ/ᴬ ",
             options: _ptnOptions() },
@@ -601,6 +597,8 @@ var Phin0 = mark0 && para1.indexOf("inhn=") != -1 ? (para1.split("inhn=")[1].spl
 var Phout0 = mark0 && para1.indexOf("outhn=") != -1 ? (para1.split("outhn=")[1].split("&")[0].split("+")).map(decodeURIComponent) : null; //hostname
 var Preplace = mark0 && para1.indexOf("replace=") != -1 ? para1.split("replace=")[1].split("&")[0] : null; //filter/rewrite 正则替换
 var Pemoji = mark0 && para1.indexOf("emoji=") != -1 ? para1.split("emoji=")[1].split("&")[0] : null;
+// 仅记录 rename 显式设置的图标；rrname 等操作保持原有行为。
+var RenameEmojiServers = Object.create(null);
 var Pdbg = mark0 && para1.indexOf("dbg=") != -1 ? para1.split("dbg=")[1].split("&")[0] : null;
 var Pudp0 = mark0 && para1.indexOf("udp=") != -1 ? para1.split("udp=")[1].split("&")[0] : 0;
 var Ptfo0 = mark0 && para1.indexOf("tfo=") != -1 ? para1.split("tfo=")[1].split("&")[0] : 0;
@@ -1488,7 +1486,7 @@ function emoji_prefix_handle(item) {
 function getnode_emoji(item,ind){
   ind = !/^(1|2)$/.test(ind) ? 2 : ind
   if(item.indexOf("tag=")!=-1) {
-    return get_emoji(ind,item.split("tag=")[1])[1]
+    return get_emoji(ind,item.split("tag=")[1],RenameEmojiServers[item])[1]
   }
 }
 
@@ -3804,11 +3802,13 @@ function DelReg(content) {
 //节点重命名
 function Rename(str) {
     var server = str;
+    var renameEmoji = null;
     if (server.indexOf("tag=") != -1) {
         hd = server.split("tag=")[0] // 非 name 部分
         name = server.split("tag=")[1].split(",")[0].trim() // name 部分
         tail = server.split("tag=")[1].split(",").length <=1 ? "" : server.split("tag=")[1].split(name)[1]
         for (var i = 0; i < Prn.length; i++) {
+            var previousName = name;
             nname = Prn[i].split("@")[1] ? decodeURIComponent(Prn[i].split("@")[1]) : Prn[i].split("@")[1];
             oname = Prn[i].split("@")[0] ? decodeURIComponent(Prn[i].split("@")[0]) : Prn[i].split("@")[0];
             if (oname && nname) { //重命名
@@ -3833,8 +3833,18 @@ function Rename(str) {
             } else {
                 name = name
             }
+            // 仅 rename 可覆盖图标；rrname 共用此函数但不启用覆盖。
+            if (Prn === Prname && (name !== previousName || (oname && previousName.indexOf(oname) !== -1) || (oname && nname === "")) && (Pemoji == 1 || Pemoji == 2)) {
+                var emojiOverride = rename_emoji(name, oname && nname === "" ? oname : nname);
+                if (emojiOverride) {
+                    name = emojiOverride[0];
+                    renameEmoji = emojiOverride[1];
+                }
+            }
             nserver = hd + "tag=" + name + tail
         }
+      // 多条 rename 后再记录最终名称，后续普通文字替换不会丢失覆盖。
+      if (renameEmoji && name.indexOf(renameEmoji) !== -1) { RenameEmojiServers[nserver] = renameEmoji; }
       return nserver
     } else {
       return server
@@ -3863,8 +3873,25 @@ function emoji_del(str) {
     return str.replace(/[\uD83C][\uDDE6-\uDDFF][\uD83C][\uDDE6-\uDDFF]/g, "").trim();//unescape(escape(str).replace(/\%uD.{3}/g, ''));
 }
 
+// 使用 UTF-16 范围匹配常见 Emoji（含国旗、肤色、连接序列和键帽），兼容原脚本运行环境。
+function rename_emoji_pattern() {
+    var base = "(?:[\\uD83C][\\uDDE6-\\uDDFF][\\uD83C][\\uDDE6-\\uDDFF]|[#*0-9]\\uFE0F?\\u20E3|[\\u00A9\\u00AE\\u203C\\u2049\\u2122\\u2139\\u2194-\\u2199\\u21A9\\u21AA\\u2300-\\u23FF\\u25AA\\u25AB\\u25B6\\u25C0\\u25FB-\\u25FE\\u2600-\\u27BF\\u2934\\u2935\\u2B05-\\u2B07\\u2B1B\\u2B1C\\u2B50\\u2B55\\u3030\\u303D\\u3297\\u3299]|\\uD83C[\\uDC04\\uDCCF\\uDD70-\\uDDFF\\uDE00-\\uDFFF]|[\\uD83D\\uD83E][\\uDC00-\\uDFFF])";
+    var suffix = "[\\uFE0E\\uFE0F]?(?:\\uD83C[\\uDFFB-\\uDFFF])?";
+    return new RegExp(base + suffix + "(?:\\u200D" + base + suffix + ")*", "g");
+}
+
+// 只有本条规则明确插入 Emoji 才覆盖；没有指定图标的节点仍自动识别国家。
+function rename_emoji(sname, preferred) {
+    var matches = (preferred || "").match(rename_emoji_pattern());
+    if (!matches) { return null; }
+    var icon = matches[matches.length - 1];
+    var plainName = sname.replace(rename_emoji_pattern(), "").trim();
+    return [icon + " " + plainName, icon];
+}
+
 //为节点名添加 emoji
-function get_emoji(emojip, sname) {
+function get_emoji(emojip, sname, forcedEmoji) {
+   if (forcedEmoji) { return [sname.trim(), forcedEmoji]; }
    var Lmoji = { 
     "🏳️‍🌈": ["流量", "套餐", "剩余", "重置", "到期" , "时间", "应急", "过期", "Bandwidth", "expire", "Traffic", "traffic"],
     "🇴🇲": ["阿曼", " OM "],
@@ -4047,9 +4074,9 @@ function emoji_handle(servers, Pemoji) {
             var nname = oname;//emoji_del(oname);
             // Code: https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2, Emoji: https://emojipedia.org/flags/
             if (Pemoji == 1) {
-                var nname = get_emoji(1, nname)[0]
+                var nname = get_emoji(1, nname, RenameEmojiServers[ser0[i]])[0]
             } else if (Pemoji == 2) {
-                var nname = get_emoji(2, nname)[0]
+                var nname = get_emoji(2, nname, RenameEmojiServers[ser0[i]])[0]
             } else if (Pemoji == -1) {
                 nname = emoji_del(oname);
             }
