@@ -3597,6 +3597,7 @@ function NotifyUnsupportedRules(ignored) {
   $notify("⚠️ 已忽略 " + ignored.length + " 条无法自动转换的规则 ➟ ⟦" + subtag + "⟧", "📋 点击通知查看详情（展示 " + shown + "/" + ignored.length + " 条）" + (truncated ? "，长内容已截断" : ""), message)
 }
 
+// ⟦2026-11-02 18:07 UTC+8⟧ reject/跳转重写转换排除已识别的分流，避免把末尾策略误转为 url reject。
 function isQuanXRewrite(content, failures) {
   var cnt = content.filter(Boolean)
   var cnt0=[]
@@ -3655,7 +3656,7 @@ function isQuanXRewrite(content, failures) {
       } else if (cnti.indexOf("pattern")!=-1 && cnti.indexOf("type")!=-1 || cnti.indexOf("http-r")!=-1) {
         cnti=SGMD2QX(cnti)[0]? SGMD2QX(cnti)[0]:""
         //console.log(cnti)
-      }else if ((cnti.indexOf(" 302")!=-1 || cnti.indexOf(" 307")!=-1 || (/\s(_|-)\s(reject|REJECT)/.test(cnti)) || (/\sreject$/.test(cnti)) || (/\sreject-/.test(cnti))) && cnti.indexOf(" url ")==-1 && cnti.indexOf(" url-and-header ")==-1 ){
+      }else if (!filterRule && (cnti.indexOf(" 302")!=-1 || cnti.indexOf(" 307")!=-1 || (/\s(_|-)\s(reject|REJECT)/.test(cnti)) || (/\sreject$/.test(cnti)) || (/\sreject-/.test(cnti))) && cnti.indexOf(" url ")==-1 && cnti.indexOf(" url-and-header ")==-1 ){
         cnti=SGMD2QX(cnti)[0]? SGMD2QX(cnti)[0]:""
         //console.log("sss",cnti)
       }else if(cnti.indexOf(" data=")!=-1){
